@@ -1,0 +1,25 @@
+include: ""
+server:
+  httpserver:
+    enabled: false
+    addr: 127.0.0.1:11333
+  unixserver:
+    enabled: true
+    sockfile: /tmp/.gosuv.sock
+  auth:
+    enabled: false
+    username: ""
+    password: ""
+    ipfile: ""
+  pidfile: /tmp/.gosuv.pid
+  log:
+    logpath: /tmp/logs
+    level: info
+    filemax: 10000
+    backups: 7
+  minfds: 0
+  minprocs: 0
+client:
+  server_url: unix:///tmp/.gosuv.sock
+  username: ""
+  password: ""

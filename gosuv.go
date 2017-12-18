@@ -1,141 +1,55 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 
-	"github.com/franela/goreq"
-	"github.com/qiniu/log"
 	"github.com/urfave/cli"
 )
 
-const appID = "app_8Gji4eEAdDx"
-
-var (
-	version string = "master"
-	cfg     Configuration
-)
-
-type TagInfo struct {
-	Version   string `json:"tag_name"`
-	Body      string `json:"body"`
-	CreatedAt string `json:"created_at"`
-}
-
-func githubLatestVersion(repo, name string) (tag TagInfo, err error) {
-	githubURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", repo, name)
-	req := goreq.Request{Uri: githubURL}
-	ghToken := os.Getenv("GITHUB_TOKEN")
-	if ghToken != "" {
-		req.AddHeader("Authorization", "token "+ghToken)
-	}
-	res, err := req.Do()
-	if err != nil {
-		return
-	}
-	err = res.Body.FromJsonTo(&tag)
-	return
-}
-
-func githubUpdate(skipConfirm bool) error {
-	repo, name := "codeskyblue", "gosuv"
-	tag, err := githubLatestVersion(repo, name)
-	if err != nil {
-		fmt.Println("Update failed:", err)
-		return err
-	}
-	if tag.Version == version {
-		fmt.Println("No update available, already at the latest version!")
-		return nil
-	}
-
-	fmt.Println("New version available -- ", tag.Version)
-	fmt.Print(tag.Body)
-
-	if !skipConfirm {
-		if !askForConfirmation("Would you like to update [Y/n]? ", true) {
-			return nil
-		}
-	}
-	fmt.Printf("New version available: %s downloading ... \n", tag.Version)
-	// // fetch the update and apply it
-	// err = resp.Apply()
-	// if err != nil {
-	// 	return err
-	// }
-	cleanVersion := tag.Version
-	if strings.HasPrefix(cleanVersion, "v") {
-		cleanVersion = cleanVersion[1:]
-	}
-	osArch := runtime.GOOS + "_" + runtime.GOARCH
-
-	downloadURL := StringFormat("https://github.com/{repo}/{name}/releases/download/{tag}/{name}_{version}_{os_arch}.tar.gz", map[string]interface{}{
-		"repo":    "codeskyblue",
-		"name":    "gosuv",
-		"tag":     tag.Version,
-		"version": cleanVersion,
-		"os_arch": osArch,
-	})
-	fmt.Println("Not finished yet. download from:", downloadURL)
-	// fmt.Printf("Updated to new version: %s!\n", tag.Version)
-	return nil
-}
-
-func checkServerStatus() error {
-	resp, err := http.Get(cfg.Client.ServerURL + "/api/status")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	var ret JSONResponse
-	err = json.Unmarshal(body, &ret)
-	if err != nil {
-		return errors.New("json loads error: " + string(body))
-	}
-	if ret.Status != 0 {
-		return fmt.Errorf("%v", ret.Value)
-	}
-	return nil
-}
+var cl = &Client{}
 
 func main() {
-	var defaultConfigPath = filepath.Join(defaultConfigDir, "config.yml")
+
+	//初始global 变量
+	CfgDir = getCurrentPath()
+	CurrentDir = getCurrentPath()
+	CmdDir = getExecPath()
 
 	app := cli.NewApp()
-	app.Name = "gosuv"
-	app.Version = version
-	app.Usage = "golang port of python-supervisor"
+	app.Name = AppName
+	app.Version = Version
+	app.Usage = "golang supervisor"
 	app.Before = func(c *cli.Context) error {
 		var err error
-		cfgPath := c.GlobalString("conf")
-		cfg, err = readConf(cfgPath)
-		if err != nil {
-			log.Fatal(err)
+		CfgFile = c.GlobalString("conf")
+
+		if filepath.IsAbs(CfgFile) {
+			CfgDir = filepath.Dir(CfgFile)
+		} else {
+			CfgDir = filepath.Dir(filepath.Join(getCurrentPath(), CfgFile))
 		}
+		Cfg, err = readConf(CfgFile)
+		if err != nil {
+			fmt.Printf("read conf failed,", err)
+			os.Exit(-1)
+		}
+		//加载client配置
+		cl = NewClient()
 		return nil
 	}
 	app.Authors = []cli.Author{
 		cli.Author{
-			Name:  "codeskyblue",
-			Email: "codeskyblue@gmail.com",
+			Name:  Author,
+			Email: Email,
 		},
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "conf, c",
 			Usage: "config file",
-			Value: defaultConfigPath,
+			Value: DefaultConfig,
 		},
 	}
 	app.Commands = []cli.Command{
@@ -150,7 +64,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "conf, c",
 					Usage: "config file",
-					Value: defaultConfigPath,
+					Value: DefaultConfig,
 				},
 			},
 			Action: actionStartServer,
@@ -159,6 +73,12 @@ func main() {
 			Name:    "status",
 			Aliases: []string{"st"},
 			Usage:   "Show program status",
+			Action:  actionProgramStatus,
+		},
+		{
+			Name:    "status-server",
+			Aliases: []string{"st"},
+			Usage:   "Show server status",
 			Action:  actionStatus,
 		},
 		{
@@ -177,37 +97,25 @@ func main() {
 			Action: actionReload,
 		},
 		{
-			Name:  "shutdown",
-			Usage: "Shutdown server",
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  "restart, r",
-					Usage: "restart server(todo)",
-				},
-			},
+			Name:   "shutdown",
+			Usage:  "Shutdown server",
 			Action: actionShutdown,
+		},
+		{
+			Name:   "kill",
+			Usage:  "kill stop server by pid file.",
+			Action: actionKill,
+		},
+		{
+			Name:   "restart-server",
+			Usage:  "restart server",
+			Action: actionRestart,
 		},
 		{
 			Name:    "conftest",
 			Aliases: []string{"t"},
 			Usage:   "Test if config file is valid",
 			Action:  actionConfigTest,
-		},
-		{
-			Name:  "update-self",
-			Usage: "Update gosuv itself",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "channel, c",
-					Usage: "update channel name, stable or dev",
-					Value: "stable",
-				},
-				cli.BoolFlag{
-					Name:  "yes, y",
-					Usage: "Do not promote to confirm",
-				},
-			},
-			Action: actionUpdateSelf,
 		},
 		{
 			Name:   "edit",
@@ -222,6 +130,7 @@ func main() {
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }

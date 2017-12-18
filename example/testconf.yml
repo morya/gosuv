@@ -1,0 +1,25 @@
+include: ./conf/programs.yml
+server:
+  httpserver:
+    enabled: false
+    addr: :11333
+  unix_server:
+    enabled: true
+    sockfile: ./.gosuv.sock
+  auth:
+    enabled: true
+    username: abc
+    password: abc
+    ipfile: ""
+  pidfile: ./.gosuv.pid
+  log:
+    logpath: ./logs
+    level: info
+    filemax: 50MB
+    backups: 10
+  minfds: 1024
+  minprocs: 1024
+client:
+  server_url: unix://
+  username: abc
+  password: abc

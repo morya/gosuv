@@ -1,0 +1,10 @@
+- name: redis-test # programs的名字唯一
+  command: redis-server --port 6679
+  environ: []
+  directory: /tmp
+  start_auto: true
+  start_retries: 3
+  log_disable: false # 是否禁用屏幕输出 默认为false
+  user: work  #指定用户启动, 但是非root不用指定用户
+  redirect_stderr : true  # 把 stderr 重定向到 stdout，默认 false
+

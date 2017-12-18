@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+	//"os/exec"
 
-	"github.com/qiniu/log"
+	log "github.com/cihub/seelog"
 )
 
 var ErrGoTimeout = errors.New("GoTimeoutFunc")
@@ -112,4 +114,14 @@ func StringFormat(format string, m map[string]interface{}) string {
 		format = strings.Replace(format, "{"+k+"}", fmt.Sprintf("%v", v), -1)
 	}
 	return format
+}
+
+func getCurrentPath() string {
+	pwd, _ := os.Getwd()
+	return pwd
+}
+
+func getExecPath() string {
+	ex, _ := os.Executable()
+	return filepath.Dir(ex)
 }

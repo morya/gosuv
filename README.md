@@ -1,115 +1,243 @@
 # gosuv
-[![Build Status](https://travis-ci.org/codeskyblue/gosuv.svg)](https://travis-ci.org/codeskyblue/gosuv)
 
-[中文README](README_ZH.md) 不是很全，能看懂英文的还是尽量看英文
+gosuv是golang版的supervisor的进程管理程序,类似python版的superviosr. gosuv有安装部署简单,使用便利等优点. 
 
-## current is in beta
-Process management writtern by golang, inspired by python-supervisor
+wiki地址: 
 
-## So why write another supervisor?
-I have been using python-supervisor for many years and there are something uncomfortable feelings.
+## 当前版本 
 
-1. Log can't contains ANSI color chars
-1. The configuration file can add on the web, often forgot some settings.
-1. `supervisorctl reload` will cause supervisord restarted
-1. Hard to set status change to fatal notifications.
-1. No process performance monitor page.
-1. Program starts with no common environ, eg, missing HOME and USER variable
-1. Kill process default is not group kill which make sub process still running.
-1. More... will added when I think of it.
+```
+gosuv version 201712041615
+```
 
-## Features
+## 功能列表
 
-* [x] Web control page
-	
+* [x] 命令行
+    * [x] server控制
+        * [x] 启动 start-server
+        * [x] 关闭 shutdown
+        * [x] 查看状态 status-server
+        * [x] 重启 restart-server
+        * [x] 杀进程 kill 
+        * [x] 重载 reload 
+        * [x] 配置检查 conftest
+    * [x] programs控制
+        * [x] 启动 start <program name>
+        * [x] 停止 stop <program name>
+        * [x] 编辑 edit 
+        * [x] 状态 status
+* [x] web页面控制
   * [x] Start, Stop, Tail, Reload
   * [x] Realtime log
 	* [x] Add program support
 	* [x] Edit support
 	* [x] Delete support
 	* [x] Memory and CPU monitor
-	* [ ] Path auto complete <https://github.com/twitter/typeahead.js>
+* [x] 日志管理
+    * [x] gosuv server日志
+    * [x] programs标准/错误输出日志
+    * [x] 日志切割
+* [x] HTTP Server
+* [x] Unix Sock Server
+* [x] 基本的用户密码验证
+* [x] 静态文件编译入bin
+* [ ] 授权ip列表
+* [ ] shell界面
+* [x] 平滑关闭
 
-* [x] HTTP Basic auth
-* [x] Github webhook
-* [ ] Single log page, include search support
-* [ ] 中文文档
+## 总体介绍 
 
-## Requirements
-Go version at least `1.6+`
+gosuv是一个集server和client一体的命令行. server又分为HTTP和Unix两种分别对应web和sock管理两种方式. 并且提供了web操作界面. 
 
-## Installation
-### Binaries
-The fastest way is run with. Default install location is `/usr/local/bin`, change env-var `BINDIR` will also change install location.
+主要的功能是为管理进程提供守护服务,当被管理的服务异常退出的时候再尝试拉起.
 
-```
-curl https://raw.githubusercontent.com/codeskyblue/gosuv/master/get.sh | bash
-```
 
-Or just download binaries
-
-<https://github.com/codeskyblue/gosuv/releases>
-
-Thanks to [goreleaser](https://github.com/goreleaser/goreleaser) which makes publish binaries automaticly.
-
-### Build from source
-```sh
-go get -d github.com/codeskyblue/gosuv
-cd $GOPATH/src/github.com/codeskyblue/gosuv
-go generate # package html resources into go
-go build -tags vfs
-```
 
 ## Quick start
-After you installed gosuv, the first thing is to start server.
 
-```sh
-gosuv start-server
+### 编译安装
+
+```
+cd ${git dir}
+
+bash hack/build.sh
+```
+编译成功将bin文件放置到bin目录下
+
+
+### 默认启动服务
+
+```
+$./gosuv start-server
+server started, listening  .gosuv.sock.
 ```
 
-Basic operations
+在当前没有config的情况下会产生默认的config.yml在当前目录.默认使用sock的管理方式. 
 
-```sh
-$ gosuv status
-PROGRAM NAME            STATUS
-test                    running
-test_again              stopped
+### 查看server状态
 
-$ gosuv stop test
-$ gosuv start test
+
+```
+$./gosuv status-server
+server is running
 ```
 
-Open web <http://localhost:11313> to see the manager page. And follow the gif to add a program to gosuv.
+表示服务提供正常
 
+### 添加Programs
+
+默认没有programs的配置文件. 
+
+创建programs.yml到当前目录.
+
+```
+- name: redis-test # programs的名字唯一
+  command: redis-server --port 6679
+  environ: []
+  directory: /tmp
+  start_auto: true     #代表gosuv启动的时候默认启动该进程
+  start_retries: 3  # 1分钟内的重启次数, 1分钟内重启成功,会重新计数. 所以不建议设置太大 如果太大容易造成永远retry. 还有优化的空间.
+  user: work  #指定用户启动, 但是非root不用指定用户
+  redirect_stderr: true  # 把 stderr 重定向到 stdout，默认 false
+  log_disable: false # 是否禁用屏幕输出 默认为false ,如果标准输出和错误输出太多可以关闭.
+```
+
+PS: programs的日志没有切割功能,所以如果标准输出内容太多,可以使用log_disable : true 关闭
+
+### 启动program
+
+重新加载配置
+
+```
+$ ./gosuv reload
+load config success
+```
+
+查看状态
+```
+$ ./gosuv status
+PROGRAM NAME           	STATUS
+redis-test             	running
+```
+
+### 关闭program
+
+```
+$ ./gosuv stop redis-test
+```
+
+## 高级用法
+
+### 开发使用场景
+
+* 开发使用场景,可以开启HTTP WEB的方式. 
+
+* 可以在web上面添加programs
+
+* 每个gosuv可以管理多个进程. 
+
+### 线上服务场景
+
+* 建议使用unix server的方式.(减少端口占用) 
+
+* 1个gosuv管理一个进程服务. 
+
+* 可以添加授权等操作. 
+
+### 配置文件说明
+
+```
+include: ./conf/programs.yml #指定programs文件, 这个版本不支持. 当前版本还是默认和主配置文件同一个目录,文件名programs.yml固定 
+server:
+  httpserver:        ## http api 
+    enabled: false   ## 是否启用 如果httpserver启动优先级大于unixserver
+    addr: :11333     ## ip:port, :port的意思是bind all 0.0.0.0
+  unixserver:        ## unix api
+    enabled: true    ## 默认启动 
+    sockfile: .gosuv.sock  ## sock file位置,默认当前目录.gosuv.sock
+  auth:              ## 权限
+    enabled: true    ## 是否启动
+    username: abc    ## 用户名
+    password: abc    ## 密码
+    ipfile: ""       ## ip授权列表 这版本暂时未支持
+  pidfile: .gosuv.pid  ## gosuv pid文件,默认当前目录.gosuv.pid
+  log:
+    logpath: logs  ## 日志存在目录 会存储gosuv.log 和各个programs(被管理进程的屏幕输出)
+    level: info      ## 日志级别
+    filemax: 10000    ## 每个日志文件大小
+    backups: 10      ## 切割保留的日志数量
+  minfds: 1024       ## 可以打开的文件描述符的最小值 暂不支持
+  minprocs: 1024     ## 可以打开的进程数的最小值 暂不支持
+client:              ## client配置, 可以独立于server使用和配置. 
+  server_url: unix://.gosuv.sock ## url的配置 两种格式 unix://file.sock 和http://ip:port 例如:  unix:///tmp/gosuv.sock 或者http://127.0.0.1:8181 与server的方式相对应
+  username: abc      ## server要求的用户名
+  password: abc      ## server要求的密码
+```
+
+PS: programs的日志没有切割功能,这里的日志切割配置只管理了gosuv.log本身的日志
+
+### 命令行说明
+
+```
+$./gosuv -h
+NAME:
+   gosuv - golang supervisor
+
+USAGE:
+   gosuv [global options] command [command options] [arguments...]
+
+VERSION:
+   201711232023
+
+AUTHOR:
+   sf-op <sf_tc_op@sf-express.com>
+
+COMMANDS:
+     start-server       Start supervisor and run in background 启动gosuv 并放到后台,如果要在前台使用,可以添加 -f 
+     status, st         Show program status  查看programs的状态
+     status-server      Show server status   查看server的状态
+     start              Start program
+     stop               Stop program
+     reload             Reload config file
+     shutdown           Shutdown server    优雅关闭,会先关闭programs再退出.
+     kill               kill stop server by pid file.  kill进程通过pid
+     restart-server     restart server    重启server
+     conftest, t        Test if config file is valid
+     edit               Edit config file  
+     version, v         Show version
+     help, h            Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --conf value, -c value  config file (default: "config.yml")
+   --help, -h              show help
+   --version, -v           print the version
+
+```
+### web界面管理
 
 ![gosuv web](docs/gosuv.gif)
 
-## Configuration
-Default config file stored in directory `$HOME/.gosuv/`, Set env-var `GOSUV_HOME_DIR` can change config file store directory.
+### 静态文件编译
 
-- file `programs.yml` contains all program settings.
-- file `config.yml` contains server config
+./hack/install.sh
 
-File `config.yml` can be generated by `gosuv conftest`
+可以将res下面的静态文件编译到bin文件中.这样安装部署只有一个bin文件,不需要单独部署静态文件. 
 
-Example config.yaml
+## 注意事项
 
-```
-server:
-  httpauth:
-    enabled: false
-    username: uu
-    password: pp
-  addr: :11313
-client:
-  server_url: http://localhost:11313
-```
+####  kill与kill -9 
+    
+1. kill <gosuv pid> 默认发送的是SIGQUIT指令,可以被gosuv获取到信号,所以会平滑的退出所有托管的进程.
+2. kill -9 <gosuv pid> 发送的是SIGKILL指令,是不可以被gosuv获取到信息,所以所有托管的进程会被系统托管,gosuv本身退出. 进程服务可能还能正常提供服务. 
 
-Logs can be found in `$HOME/.gosuv/log/`
+Linux Singal http://colobu.com/2015/10/09/Linux-Signals/
 
-Edit config file(default located in `$HOME/.gosuv/programs.yml`) and run `gosuv reload` will take effect immediately.
+####  配置修改时间点
+
+1. 如果gosuv正在提供服务,修改了其中的client的连接方式等会导致无法正常使用API或者cmd. 所以建议shutdown后再进行配置的修改再启动生效.
 
 ## Design
+
 HTTP is follow the RESTFul guide.
 
 Get or Update program
@@ -125,40 +253,11 @@ Del program
 `DELETE /api/programs/:name`
 
 ## State
+
 Only 4 states. [ref](http://supervisord.org/subprocess.html#process-states)
 
-![states](docs/states.png)
+## 声明
 
-## Notification
-Configuration example
+代码重构源于github.com/codeskyblue/gosuv 有时间提交贡献代码.
 
-```yaml
-- demo-program:
-  command: ...
-  notifications:
-    pushover:
-      api_key: [token]
-      users:
-      - [user1]
-      - [user2]
-```
 
-Now only support [pushover](https://pushover.net/api), and only status change to fatal will get notified.
-
-## Integrate with github (todo)
-This is feature that will helps update your deployment environment once your updated in the github.
-
-This part is set in the `programs.yml`, take look the example
-
-```yml
-- demo-program:
-  command: python app.py
-  directory: /opt/demo
-  webhook:
-    github:
-      secret: 123456
-      command: git pull origin master
-```
-
-## LICENSE
-[MIT](LICENSE)
