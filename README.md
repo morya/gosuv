@@ -237,6 +237,10 @@ Linux Singal http://colobu.com/2015/10/09/Linux-Signals/
 
 1. 如果gosuv正在提供服务,修改了其中的client的连接方式等会导致无法正常使用API或者cmd. 所以建议shutdown后再进行配置的修改再启动生效.
 
+#### 重启次数
+
+重启次数是在一分钟内的次数,如果超过一分钟,重启次数会进行重置.所以不建议一分钟类重启次数过多,可能会导致无限重启的情况,因为重启后的每隔1分钟就会被重置. 
+
 ## Design
 
 HTTP is follow the RESTFul guide.
