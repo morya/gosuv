@@ -36,7 +36,8 @@ gosuv version 201712041615
 * [x] 日志管理
     * [x] gosuv server日志
     * [x] programs标准/错误输出日志
-    * [x] 日志切割
+    * [x] gosuv server日志切割
+    * [ ] programs 日志切割
 * [x] HTTP Server
 * [x] Unix Sock Server
 * [x] 基本的用户密码验证
