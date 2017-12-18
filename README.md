@@ -63,7 +63,7 @@ cd ${git dir}
 
 bash hack/build.sh
 ```
-编译成功将bin文件放置到bin目录下
+编译成功将gosuv文件放置到bin目录下
 
 
 ### 默认启动服务
