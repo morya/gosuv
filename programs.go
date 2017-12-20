@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os/user"
 
+	"gosuv/pushover"
+
 	log "github.com/cihub/seelog"
-	"github.com/codeskyblue/gosuv/pushover"
 )
 
 func (p *Program) Check() error {

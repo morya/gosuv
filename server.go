@@ -18,8 +18,10 @@ import (
 	"syscall"
 	"time"
 
+	"gosuv/gops"
+
 	log "github.com/cihub/seelog"
-	"github.com/codeskyblue/gosuv/gops"
+
 	"github.com/codeskyblue/kexec"
 	"github.com/go-yaml/yaml"
 	"github.com/gorilla/mux"

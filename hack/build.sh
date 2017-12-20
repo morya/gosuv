@@ -2,7 +2,7 @@
 
 CURRENT_DIR=$(pwd)
 BUILD_DIR=_output
-BUILD_PREFIX=github.com/codeskyblue/gosuv
+BUILD_PREFIX=gosuv
 GOPATH=${CURRENT_DIR}/${BUILD_DIR}
 DESTINATION_DIR=${GOPATH}/src/${BUILD_PREFIX}
 
