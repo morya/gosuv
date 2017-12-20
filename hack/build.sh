@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 CURRENT_DIR=$(pwd)
 BUILD_DIR=_output
