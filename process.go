@@ -194,6 +194,10 @@ func (p *Process) startCommand() {
 		p.SetState(Fatal)
 		return
 	}
+
+	//重置retry次数
+	go p.resetRetry()
+
 	go func() {
 		errC := GoFunc(p.cmd.Wait)
 		startTime := time.Now()
@@ -242,10 +246,7 @@ func NewProcess(pg Program) *Process {
 		pr.StopTimeout = 3
 	}
 
-	//重置retry次数
-	go pr.resetRetry()
-
-	pr.AddHandler(Stopped, StartEvent, func() {
+		pr.AddHandler(Stopped, StartEvent, func() {
 		pr.retryLeft = pr.StartRetries
 		pr.startCommand()
 	})
