@@ -192,7 +192,7 @@ VERSION:
    201711232023
 
 AUTHOR:
-   sf-op <sf_tc_op@sf-express.com>
+   op
 
 COMMANDS:
      start-server       Start supervisor and run in background 启动gosuv 并放到后台,如果要在前台使用,可以添加 -f 
